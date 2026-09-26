@@ -273,8 +273,8 @@ export class ParticleField {
       const size = particle.size * (1 + particle.heat * 0.7);
       const colour = dark
         ? particle.cool
-          ? `rgba(95, 100, 110, ${alpha * 0.6})`
-          : `rgba(10, 10, 11, ${alpha * 0.6})`
+          ? `rgba(95, 100, 110, ${Math.min(1, alpha * 0.6 + particle.heat * 0.3)})`
+          : `rgba(10, 10, 11, ${Math.min(1, alpha * 0.6 + particle.heat * 0.3)})`
         : particle.cool
           ? `rgba(196, 210, 255, ${alpha})`
           : `rgba(245, 245, 245, ${alpha})`;

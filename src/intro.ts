@@ -359,6 +359,7 @@ export function startIntro() {
     }
     // not "done", that value fades the logo in for someone arriving from inside the site
     root.dataset.intro = "finished";
+    window.dispatchEvent(new Event("norn:intro-done"));
     skip.remove();
     removeSkipListeners();
   };
@@ -399,7 +400,7 @@ export function startIntro() {
 
   const sprayFromCut = (from: number, to: number, speed: number) => {
     // sparks per pixel of cut, so a phone and a monitor get the same density
-    const perPixel = (field.budget() * 1.1) / (2 * DISC_HALF_CHORD * line.scale);
+    const perPixel = (field.budget() * 0.3) / (2 * DISC_HALF_CHORD * line.scale);
     const count = Math.round((to - from) * perPixel);
     const normalX = -line.directionY;
     const normalY = line.directionX;
@@ -408,7 +409,7 @@ export function startIntro() {
       const side = Math.random() < 0.5 ? -1 : 1;
       const x = line.startX + line.directionX * at + normalX * side * 8 * line.scale;
       const y = line.startY + line.directionY * at + normalY * side * 8 * line.scale;
-      const outward = 120 + Math.random() * 680;
+      const outward = 60 + Math.random() * 300;
       const dragged = (0.05 + Math.random() * 0.25) * speed * 1000;
       field.emit(
         x,
@@ -420,13 +421,38 @@ export function startIntro() {
   };
 
   const jet = (along: number, count: number, direction: 1 | -1, spread: number, low: number, high: number) => {
-    const x = line.startX + line.directionX * along;
-    const y = line.startY + line.directionY * along;
     const heading = Math.atan2(line.directionY * direction, line.directionX * direction);
     for (let index = 0; index < count; index++) {
+      // spread across the width of the hole, not from a single point
+      const across = (Math.random() - 0.5) * 16 * line.scale;
+      const x = line.startX + line.directionX * along - line.directionY * across;
+      const y = line.startY + line.directionY * along + line.directionX * across;
       const angle = heading + (Math.random() - 0.5) * spread;
       const speed = low + Math.random() * (high - low);
       field.emit(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed);
+    }
+  };
+
+  // the holes keep spitting for a moment, most of it right away
+  type Emitter = {
+    along: number;
+    direction: 1 | -1;
+    spread: number;
+    low: number;
+    high: number;
+    start: number;
+    duration: number;
+    total: number;
+    emitted: number;
+  };
+  const emitters: Emitter[] = [];
+  const runEmitters = (elapsed: number) => {
+    for (const emitter of emitters) {
+      const progress = clamp01((elapsed - emitter.start) / emitter.duration);
+      const due = Math.round(emitter.total * (1 - (1 - progress) ** 2)) - emitter.emitted;
+      if (due <= 0) continue;
+      jet(emitter.along, due, emitter.direction, emitter.spread, emitter.low, emitter.high);
+      emitter.emitted += due;
     }
   };
 
@@ -464,7 +490,11 @@ export function startIntro() {
     const along = (head - line.impactDistance) / line.scale;
     if (!entered && along >= -DISC_HALF_CHORD) {
       entered = true;
-      jet(discEntry, Math.round(field.budget() * 0.2), -1, 1.6, 120, 520);
+      // the entry hole throws debris back the way the streak came
+      emitters.push({
+        along: discEntry, direction: -1, spread: 1.2, low: 150, high: 650,
+        start: elapsed, duration: 200, total: Math.round(field.budget() * 0.4), emitted: 0,
+      });
     }
     if (entered && !exited) {
       const inFrom = Math.max(previous, discEntry);
@@ -474,14 +504,21 @@ export function startIntro() {
     if (centerAt < 0 && along >= 0) {
       centerAt = elapsed;
       burstDone = true;
-      field.burst(line.centerX, line.centerY, line.directionX, line.directionY, Math.round(field.budget() * 0.35));
+      field.burst(line.centerX, line.centerY, line.directionX, line.directionY, Math.round(field.budget() * 0.15));
       field.shock(line.centerX, line.centerY);
     }
     if (!exited && along >= DISC_HALF_CHORD) {
       exited = true;
-      // what the ram carries out of the O, a jet along its path
-      jet(line.impactDistance + DISC_HALF_CHORD * line.scale, Math.round(field.budget() * 0.45), 1, 0.7, 400, 1600);
+      // the exit hole blows out hardest, a wide puff and then a dense cone along the path
+      const discExit = line.impactDistance + DISC_HALF_CHORD * line.scale;
+      jet(discExit, Math.round(field.budget() * 0.15), 1, 1.6, 100, 500);
+      emitters.push({
+        along: discExit, direction: 1, spread: 0.55, low: 350, high: 1500,
+        start: elapsed, duration: 380, total: Math.round(field.budget() * 0.95), emitted: 0,
+      });
     }
+
+    runEmitters(elapsed);
 
     if (centerAt >= 0) {
       const since = elapsed - centerAt;

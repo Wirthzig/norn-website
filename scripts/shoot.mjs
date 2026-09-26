@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { chromium } from "playwright-core";
 
 const base = process.argv[2] ?? "http://127.0.0.1:5610/norn-website/";
-const frames = [400, 900, 1700, 1800, 1930, 2000, 2020, 2045, 2075, 2110, 2170, 2300, 2600, 3200, 3900];
+const frames = [400, 1800, 1990, 2020, 2045, 2075, 2110, 2150, 2200, 2260, 2340, 2450, 2600, 2900, 3900];
 const out = "shots";
 mkdirSync(out, { recursive: true });
 
@@ -103,16 +103,6 @@ for (const [name, viewport] of Object.entries(viewports)) {
   await calmPage.screenshot({ path: `${out}/${name}-reduced.png` });
   await calm.close();
 
-  // a real time recording of the whole intro
-  const recording = await browser.newContext({
-    viewport: { width, height },
-    ...rest,
-    recordVideo: { dir: join(out, `video-${name}`), size: { width, height } },
-  });
-  const recordingPage = await recording.newPage();
-  await recordingPage.goto(base);
-  await recordingPage.waitForTimeout(5000);
-  await recording.close();
 }
 
 await browser.close();
