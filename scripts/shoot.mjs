@@ -1,0 +1,110 @@
+// screenshots of the intro and every page, desktop and phone, in a headless browser.
+// run against the dev server, the frozen intro frames need it:
+//   npx vite --port 5610 &
+//   npm run shoot -- http://127.0.0.1:5610/norn-website/
+// frames land in shots/, which is gitignored. fails on any page error.
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { chromium } from "playwright-core";
+
+const base = process.argv[2] ?? "http://127.0.0.1:5610/norn-website/";
+const frames = [0, 400, 900, 1400, 1560, 1700, 1760, 1790, 1850, 2000, 2300, 2800, 3500];
+const out = "shots";
+mkdirSync(out, { recursive: true });
+
+// the chrome headless shell playwright already cached, so nothing is downloaded
+function browserPath() {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  const cache = join(homedir(), "Library", "Caches", "ms-playwright");
+  const shells = existsSync(cache) ? readdirSync(cache).filter((name) => name.startsWith("chromium_headless_shell-")).sort() : [];
+  for (const shell of shells.reverse()) {
+    for (const platform of readdirSync(join(cache, shell))) {
+      const candidate = join(cache, shell, platform, "chrome-headless-shell");
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  throw new Error("no chromium found, set CHROMIUM_PATH");
+}
+
+const browser = await chromium.launch({ executablePath: browserPath() });
+const failures = [];
+const viewports = {
+  desktop: { width: 1440, height: 900, deviceScaleFactor: 1 },
+  phone: { width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+};
+
+for (const [name, viewport] of Object.entries(viewports)) {
+  const { width, height, ...rest } = viewport;
+  const context = await browser.newContext({ viewport: { width, height }, ...rest });
+  const page = await context.newPage();
+  page.on("pageerror", (error) => failures.push(`${name} ${page.url()} ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") failures.push(`${name} ${page.url()} ${message.text()}`);
+  });
+
+  for (const at of frames) {
+    await page.goto(`${base}?at=${at || 1}`);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${out}/${name}-intro-${String(at).padStart(4, "0")}.png` });
+  }
+
+  // arriving from inside the site, the finished page
+  await page.goto(base, { referer: base });
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${out}/${name}-home-hero.png` });
+  await page.evaluate(async () => {
+    for (let y = 0; y < document.body.scrollHeight; y += 300) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    }
+  });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${out}/${name}-home-full.png`, fullPage: true });
+
+  for (const slug of ["impressum", "datenschutz", "agb"]) {
+    await page.goto(`${base}${slug}/`);
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${out}/${name}-${slug}.png`, fullPage: true });
+  }
+
+  // the intro in real time, skipped by a key press halfway
+  await page.goto(base);
+  await page.waitForTimeout(900);
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(400);
+  const skipped = await page.evaluate(() => document.documentElement.dataset.intro);
+  if (skipped !== "finished") failures.push(`${name} skip left the intro at ${skipped}`);
+  await page.screenshot({ path: `${out}/${name}-skipped.png` });
+  await context.close();
+
+  // reduced motion opens on the finished logo
+  const calm = await browser.newContext({ viewport: { width, height }, ...rest, reducedMotion: "reduce" });
+  const calmPage = await calm.newPage();
+  calmPage.on("pageerror", (error) => failures.push(`${name} calm ${error.message}`));
+  await calmPage.goto(base);
+  await calmPage.waitForTimeout(1200);
+  const calmMode = await calmPage.evaluate(() => document.documentElement.dataset.intro);
+  if (calmMode !== "calm") failures.push(`${name} reduced motion ran the intro as ${calmMode}`);
+  await calmPage.screenshot({ path: `${out}/${name}-reduced.png` });
+  await calm.close();
+
+  // a real time recording of the whole intro
+  const recording = await browser.newContext({
+    viewport: { width, height },
+    ...rest,
+    recordVideo: { dir: join(out, `video-${name}`), size: { width, height } },
+  });
+  const recordingPage = await recording.newPage();
+  await recordingPage.goto(base);
+  await recordingPage.waitForTimeout(5000);
+  await recording.close();
+}
+
+await browser.close();
+if (failures.length) {
+  console.error(failures.join("\n"));
+  process.exit(1);
+}
+console.log(`ok, screenshots in ${out}/`);

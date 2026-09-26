@@ -1,0 +1,36 @@
+{
+  "name": "norn-website",
+  "version": "1.0.0",
+  "description": "The Norn website",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "shoot": "node scripts/shoot.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wirthzig/norn-website.git"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Wirthzig/norn-website/issues"
+  },
+  "homepage": "https://github.com/Wirthzig/norn-website#readme",
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "thinking-orbs": "^0.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "playwright-core": "^1.63.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3"
+  },
+  "private": true
+}

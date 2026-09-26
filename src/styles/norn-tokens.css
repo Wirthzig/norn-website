@@ -1,0 +1,260 @@
+/* the design system's own css, everything that is not a tailwind utility.
+   styles.css wraps it for the bundle, an app with its own tailwind imports it
+   directly. */
+
+:root {
+  --background: #ffffff;
+  --surface-hover: #f5f5f5;
+  --surface-active: #ebeced;
+  --border: #ebeced;
+  --text: #171717;
+  --text-strong: #000000;
+  --text-muted: #979ca2;
+  --positive: #59d666;
+  --negative: #ec5748;
+}
+
+/* motion. the curves and durations are emil kowalski's, see .claude/skills and
+   the motion section of the design system readme. built in easings are too weak,
+   so everything names one of these. */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 160ms;
+  --duration-colour: 150ms;
+  --duration-small: 200ms;
+  --duration-panel: 250ms;
+
+  /* muted status text. green and red text stay the brand hex, decision D20 */
+  --muted-text: #65696e;
+}
+
+/* press feedback, the interface heard the click */
+.norn-press {
+  transition:
+    transform var(--duration-press) var(--ease-out),
+    background-color var(--duration-colour) ease,
+    color var(--duration-colour) ease;
+}
+.norn-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* hover changes colour and never moves anything */
+.norn-row {
+  transition: background-color var(--duration-colour) ease;
+}
+.norn-field {
+  transition: border-color var(--duration-colour) ease;
+}
+.norn-field:focus {
+  outline: none;
+  border-color: #979ca2;
+}
+
+/* status pill. the brand hex as text and dot, a light tint of it behind */
+.norn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 8px 0 7px;
+  border-radius: 9999px;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-colour) ease,
+    color var(--duration-colour) ease,
+    box-shadow var(--duration-colour) ease;
+}
+.norn-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  transition: background-color var(--duration-colour) ease;
+}
+.norn-pill-neutral,
+.norn-pill-running { background: rgba(23, 23, 23, 0.04); color: #171717; }
+.norn-pill-neutral .norn-pill-dot,
+.norn-pill-running .norn-pill-dot { background: #171717; }
+.norn-pill-positive { background: rgba(89, 214, 102, 0.08); color: #59d666; }
+.norn-pill-positive .norn-pill-dot { background: #59d666; }
+.norn-pill-negative { background: rgba(236, 87, 72, 0.06); color: #ec5748; }
+.norn-pill-negative .norn-pill-dot { background: #ec5748; }
+.norn-pill-muted { background: transparent; color: var(--muted-text); box-shadow: inset 0 0 0 1px #ebeced; }
+.norn-pill-muted .norn-pill-dot { background: #979ca2; }
+/* a job is alive. it breathes for as long as the job runs, a slow in and out */
+.norn-pill-running .norn-pill-dot { animation: norn-pulse 1.4s ease-in-out infinite; }
+@keyframes norn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* segmented control, the active copy is revealed by its clip path */
+.norn-segmented-active {
+  transition: clip-path var(--duration-small) var(--ease-out);
+}
+.norn-segmented-active > button {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px #ebeced;
+}
+.norn-segment-count { color: #979ca2; }
+
+/* checkbox tick draws itself on check, vanishes at once on uncheck */
+.norn-check path {
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+}
+.norn-checkbox:checked + .norn-check path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset var(--duration-press) var(--ease-out);
+}
+.norn-checkbox {
+  transition: background-color var(--duration-colour) ease, border-color var(--duration-colour) ease;
+}
+
+/* reduced motion means fewer and gentler, not none. colour stays, movement goes */
+@media (prefers-reduced-motion: reduce) {
+  .norn-press:active:not(:disabled) { transform: none; }
+  .norn-segmented-active { transition: none; }
+  .norn-pill-running .norn-pill-dot {
+    animation: none;
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px #171717;
+  }
+  .norn-checkbox:checked + .norn-check path { transition: none; }
+}
+
+/* numbers, phone numbers and timestamps line up in columns */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The falling pattern behind the login screen.
+   Ported from energy-optimization/apps/web/src/components/FallingPattern.tsx,
+   which drives the same layers with framer motion. The animation there is one
+   linear background position tween on a loop, which is exactly what a keyframe
+   does, so the layer data lives here and no animation library is needed.
+   See docs/DECISIONS.md D27.
+
+   Twelve layers, three gradients each. Two thin streaks at the tile edges and
+   one dot between them, every layer on its own tile height so they never fall
+   in step. */
+
+/* The knobs sit on the wrapper, because a custom property inherits down the
+   tree and the two layers below are siblings. Declaring them on the streak
+   layer left the screen layer with an invalid blur and an unset
+   background-size, so its mask painted one solid white sheet over the whole
+   effect. That failed silently and looked like an empty white page. */
+.falling-backdrop {
+  --falling-color: #979ca2;
+  --falling-duration: 120s;
+  --falling-blur: 1em;
+  --falling-dot: 8px;
+}
+
+.falling-pattern {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(4px 100px at 0px 235px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 235px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 117.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 252px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 252px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 126px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 150px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 150px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 75px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 253px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 253px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 126.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 204px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 204px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 102px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 134px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 134px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 67px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 179px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 179px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 89.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 299px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 299px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 149.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 215px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 215px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 107.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 281px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 281px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 140.5px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 158px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 158px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 79px, var(--falling-color) 100%, transparent 150%),
+    radial-gradient(4px 100px at 0px 210px, var(--falling-color), transparent),
+    radial-gradient(4px 100px at 300px 210px, var(--falling-color), transparent),
+    radial-gradient(1.5px 1.5px at 150px 105px, var(--falling-color) 100%, transparent 150%);
+  background-size:
+    300px 235px, 300px 235px, 300px 235px, 300px 252px, 300px 252px, 300px 252px, 300px 150px,
+    300px 150px, 300px 150px, 300px 253px, 300px 253px, 300px 253px, 300px 204px, 300px 204px,
+    300px 204px, 300px 134px, 300px 134px, 300px 134px, 300px 179px, 300px 179px, 300px 179px,
+    300px 299px, 300px 299px, 300px 299px, 300px 215px, 300px 215px, 300px 215px, 300px 281px,
+    300px 281px, 300px 281px, 300px 158px, 300px 158px, 300px 158px, 300px 210px, 300px 210px,
+    300px 210px;
+  animation: falling-pattern var(--falling-duration) linear infinite;
+}
+
+/* The dot screen over the streaks. The blur smears them, the mask punches a
+   fine grid of holes through it, and the result reads as the house dot grid
+   with something moving behind it. */
+.falling-pattern-screen {
+  backdrop-filter: blur(var(--falling-blur));
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    transparent 0,
+    transparent 2px,
+    var(--background) 2px
+  );
+  background-size: var(--falling-dot) var(--falling-dot);
+}
+
+@keyframes falling-pattern {
+  from {
+    background-position:
+      0px 220px, 3px 220px, 151.5px 337.5px, 25px 24px, 28px 24px, 176.5px 150px, 50px 16px,
+      53px 16px, 201.5px 91px, 75px 224px, 78px 224px, 226.5px 230.5px, 100px 19px, 103px 19px,
+      251.5px 121px, 125px 120px, 128px 120px, 276.5px 187px, 150px 31px, 153px 31px,
+      301.5px 120.5px, 175px 235px, 178px 235px, 326.5px 384.5px, 200px 121px, 203px 121px,
+      351.5px 228.5px, 225px 224px, 228px 224px, 376.5px 364.5px, 250px 26px, 253px 26px,
+      401.5px 105px, 275px 75px, 278px 75px, 426.5px 180px;
+  }
+  to {
+    background-position:
+      0px 6800px, 3px 6800px, 151.5px 6917.5px, 25px 13632px, 28px 13632px, 176.5px 13758px,
+      50px 5416px, 53px 5416px, 201.5px 5491px, 75px 17175px, 78px 17175px, 226.5px 17301.5px,
+      100px 5119px, 103px 5119px, 251.5px 5221px, 125px 8428px, 128px 8428px, 276.5px 8495px,
+      150px 9876px, 153px 9876px, 301.5px 9965.5px, 175px 13391px, 178px 13391px,
+      326.5px 13540.5px, 200px 14741px, 203px 14741px, 351.5px 14848.5px, 225px 18770px,
+      228px 18770px, 376.5px 18910.5px, 250px 5082px, 253px 5082px, 401.5px 5161px,
+      275px 6375px, 278px 6375px, 426.5px 6480px;
+  }
+}
+
+/* Someone who asked the operating system to stop moving things gets the grid
+   without the fall. The streaks stay where they start. */
+@media (prefers-reduced-motion: reduce) {
+  .falling-pattern {
+    animation: none;
+    background-position:
+      0px 220px, 3px 220px, 151.5px 337.5px, 25px 24px, 28px 24px, 176.5px 150px, 50px 16px,
+      53px 16px, 201.5px 91px, 75px 224px, 78px 224px, 226.5px 230.5px, 100px 19px, 103px 19px,
+      251.5px 121px, 125px 120px, 128px 120px, 276.5px 187px, 150px 31px, 153px 31px,
+      301.5px 120.5px, 175px 235px, 178px 235px, 326.5px 384.5px, 200px 121px, 203px 121px,
+      351.5px 228.5px, 225px 224px, 228px 224px, 376.5px 364.5px, 250px 26px, 253px 26px,
+      401.5px 105px, 275px 75px, 278px 75px, 426.5px 180px;
+  }
+}
