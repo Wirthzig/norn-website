@@ -264,7 +264,7 @@ export function startIntro() {
   );
   animate(
     wordmark,
-    [{ filter: "drop-shadow(0 0 18px rgba(220, 230, 255, 0.85))" }, { filter: "drop-shadow(0 0 0 rgba(220, 230, 255, 0))" }],
+    [{ filter: "drop-shadow(0 0 10px rgba(220, 230, 255, 0.8))" }, { filter: "drop-shadow(0 0 0 rgba(220, 230, 255, 0))" }],
     { ...at(IMPACT), duration: 1200, easing: EASE_OUT_CSS, fill: "none" },
   );
   hero.querySelectorAll(".intro-after").forEach((element, index) => {

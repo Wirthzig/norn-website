@@ -233,6 +233,24 @@ html[data-intro="calm"] .wordmark {
   }
 }
 
+/* leaving the hero, the logo sinks back into the night as the page scrolls over it.
+   scroll driven, so it runs off the main thread, and only where the browser has it */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-center {
+      animation: hero-leave linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 100svh;
+    }
+    @keyframes hero-leave {
+      to {
+        opacity: 0;
+        transform: translateY(18svh) scale(0.94);
+      }
+    }
+  }
+}
+
 /* ---------- content ---------- */
 
 main {
