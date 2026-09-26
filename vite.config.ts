@@ -7,12 +7,7 @@ export default defineConfig({
   base: process.env.SITE_BASE ?? "/norn-website/",
   build: {
     rollupOptions: {
-      input: {
-        home: resolve(__dirname, "index.html"),
-        impressum: resolve(__dirname, "impressum/index.html"),
-        datenschutz: resolve(__dirname, "datenschutz/index.html"),
-        agb: resolve(__dirname, "agb/index.html"),
-      },
+      input: { home: resolve(__dirname, "index.html") },
     },
   },
 });

@@ -19,14 +19,16 @@
         var returning = navigation && navigation.type === "back_forward";
         var internal = false;
         try { internal = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (error) {}
-        root.dataset.intro = reduce ? "calm" : returning || internal ? "done" : "play";
+        // a link straight to a section, the privacy policy for instance, skips the intro
+        var deepLink = location.hash.length > 1;
+        root.dataset.intro = reduce ? "calm" : returning || internal || deepLink ? "done" : "play";
         // the intro starts in the night, the phone's bar should too
         if (root.dataset.intro === "play") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#000000");
       })();
     </script>
   </head>
   <body class="home">
-    <main class="hero" id="hero">
+    <header class="hero" id="hero">
       <div class="hero-glow" aria-hidden="true"></div>
       <canvas class="hero-canvas" aria-hidden="true"></canvas>
       <div class="hero-center">
@@ -54,12 +56,215 @@
       <footer class="hero-footer intro-after">
         <span>© 2026 Norn</span>
         <nav aria-label="Legal">
-          <a href="impressum/">Impressum</a>
-          <a href="datenschutz/">Datenschutz</a>
-          <a href="agb/">AGB</a>
+          <a href="#impressum">Impressum</a>
+          <a href="#datenschutz">Datenschutz</a>
+          <a href="#agb">AGB</a>
         </nav>
       </footer>
+    </header>
+
+    <main class="wrap legal">
+      <section class="legal-section" id="impressum" lang="de">
+          <h2>Impressum</h2>
+
+          <h3>Angaben nach § 5 DDG</h3>
+          <address>
+            Alexander Wirths<br />
+            Deutschherrnufer 42<br />
+            60594 Frankfurt am Main<br />
+            Deutschland
+          </address>
+
+          <h3>Kontakt</h3>
+          <p>E-Mail: <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a></p>
+
+          <h3>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h3>
+          <address>
+            Alexander Wirths<br />
+            Deutschherrnufer 42, 60594 Frankfurt am Main
+          </address>
+
+          <h3>Verbraucherstreitbeilegung</h3>
+          <p>Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+
+          <h3>Haftung für Links</h3>
+          <p>
+            Diese Seite verlinkt auf Angebote Dritter. Für deren Inhalte ist der jeweilige Anbieter verantwortlich. Werden uns
+            Rechtsverstöße bekannt, entfernen wir den Link.
+          </p>
+      </section>
+      <section class="legal-section" id="datenschutz" lang="de">
+          <h2>Datenschutz</h2>
+
+          <h3>Verantwortlich</h3>
+          <address>
+            Alexander Wirths<br />
+            Deutschherrnufer 42<br />
+            60594 Frankfurt am Main<br />
+            E-Mail: <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a>
+          </address>
+
+          <h3>Diese Website</h3>
+          <p>
+            Die Website setzt keine Cookies, speichert nichts auf deinem Gerät und lädt keine Tracker, keine Analyse und keine
+            Schriften von fremden Servern. Die Schrift Inter liegt auf demselben Server wie die Seite.
+          </p>
+          <h4>Hosting bei GitHub Pages</h4>
+          <p>
+            Die Seite wird von GitHub Pages ausgeliefert, einem Dienst der GitHub Inc., 88 Colin P. Kelly Jr. Street, San
+            Francisco, CA 94107, USA. Beim Aufruf verarbeitet GitHub technisch notwendige Daten, insbesondere deine IP-Adresse,
+            um die Seite auszuliefern und den Dienst zu schützen. Rechtsgrundlage ist unser berechtigtes Interesse an einer
+            sicheren und zuverlässigen Auslieferung, Art. 6 Abs. 1 lit. f DSGVO. GitHub ist unter dem EU-US Data Privacy
+            Framework zertifiziert. Mehr dazu in der
+            <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement">Datenschutzerklärung von GitHub</a>.
+          </p>
+          <h4>E-Mail</h4>
+          <p>
+            Schreibst du uns eine E-Mail, verarbeiten wir deine Adresse und deine Nachricht, um zu antworten. Rechtsgrundlage ist
+            Art. 6 Abs. 1 lit. b oder f DSGVO. Wir löschen die Nachricht, wenn sie erledigt ist und keine Aufbewahrungspflicht
+            besteht.
+          </p>
+
+          <h3>Norn Shorts und die YouTube API</h3>
+          <p>
+            Norn Shorts ist ein privates Werkzeug, mit dem Alexander Wirths auf dem eigenen
+            Rechner kurze Videos produziert und auf die eigenen YouTube-Kanäle hochlädt. Es wird niemandem sonst angeboten.
+          </p>
+          <h4>Worauf es zugreift</h4>
+          <p>
+            Mit Zustimmung des Kanalinhabers über Google OAuth nutzt das Werkzeug die YouTube Data API, um Videos auf den Kanal
+            des Inhabers hochzuladen und ihren Sichtbarkeitsstatus zu ändern, und die YouTube Analytics API, um Aufrufe und
+            Zuschauerzahlen dieser Videos zu lesen. Auf andere Google-Daten greift es nicht zu.
+          </p>
+          <h4>Wo die Daten liegen</h4>
+          <p>
+            Alles bleibt auf dem Rechner des Inhabers. Das OAuth-Refresh-Token liegt in einer lokalen Datei, die nur das Konto des
+            Inhabers lesen kann. Analysezahlen liegen in einer lokalen Datenbank. Nichts wird verkauft, geteilt oder an Dritte
+            übermittelt.
+          </p>
+          <h4>Wie lange</h4>
+          <p>
+            Tokens bleiben gespeichert, bis der Inhaber den Zugriff widerruft. Analysezahlen bleiben so lange, wie der Inhaber die
+            lokale Datenbank behält.
+          </p>
+          <h4>Zugriff widerrufen</h4>
+          <p>
+            Der Zugriff lässt sich jederzeit unter
+            <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> widerrufen. Das Löschen der
+            lokalen Token-Datei hat für das Werkzeug dieselbe Wirkung.
+          </p>
+          <h4>Google und YouTube</h4>
+          <p>
+            Das Werkzeug nutzt die YouTube API Services. Es gelten die
+            <a href="https://www.youtube.com/t/terms">Nutzungsbedingungen von YouTube</a> und die
+            <a href="https://policies.google.com/privacy">Datenschutzerklärung von Google</a>.
+          </p>
+
+          <h3>Deine Rechte</h3>
+          <p>
+            Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und
+            Widerspruch, Art. 15 bis 21 DSGVO. Du kannst dich außerdem bei einer Datenschutzaufsichtsbehörde beschweren, zum
+            Beispiel beim Hessischen Beauftragten für Datenschutz und Informationsfreiheit,
+            Gustav-Stresemann-Ring 1, 65189 Wiesbaden.
+          </p>
+
+          <p>Stand: 27. September 2026</p>
+
+          <section class="legal-lang" lang="en">
+            <h3>Norn Shorts privacy policy, English</h3>
+            <p>
+              <strong>Norn Shorts</strong> is a private tool that Alexander Wirths runs on their own
+              computer to produce and upload short videos to their own YouTube channels. It is not offered to anyone else.
+            </p>
+            <h4>What it accesses</h4>
+            <p>
+              With the channel owner's consent through Google OAuth, the tool uses the YouTube Data API to upload videos to the
+              owner's channel and to change their privacy status, and the YouTube Analytics API to read view and audience figures
+              of those videos. It requests no access to any other Google data.
+            </p>
+            <h4>Where data is kept</h4>
+            <p>
+              Everything stays on the owner's computer. The OAuth refresh token is stored in a local file readable only by the
+              owner's account. Analytics figures are stored in a local database. Nothing is sold, shared or sent to third parties.
+            </p>
+            <h4>How long</h4>
+            <p>
+              Tokens are kept until the owner revokes access. Analytics figures are kept as long as the owner keeps the local
+              database.
+            </p>
+            <h4>Revoking access</h4>
+            <p>
+              Access can be revoked at any time at
+              <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Deleting the local token
+              file has the same effect for the tool.
+            </p>
+            <h4>Google and YouTube</h4>
+            <p>
+              The tool uses YouTube API Services. By using it you are bound by the
+              <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>, and
+              <a href="https://policies.google.com/privacy">Google's privacy policy</a> applies.
+            </p>
+            <h4>Contact</h4>
+            <p>
+              Alexander Wirths, <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a>. Last updated
+              27 September 2026.
+            </p>
+          </section>
+      </section>
+      <section class="legal-section" id="agb" lang="de">
+          <h2>AGB</h2>
+
+          <h3>Nutzungsbedingungen für Norn Shorts</h3>
+          <p>
+            Norn Shorts ist ein privates Produktionswerkzeug, das nur Alexander Wirths für die
+            eigenen YouTube-Kanäle nutzt. Es ist kein öffentliches Angebot, und niemand sonst kann sich anmelden.
+          </p>
+          <p>
+            Das Werkzeug nutzt die YouTube API Services. Seine Nutzung unterliegt den
+            <a href="https://www.youtube.com/t/terms">Nutzungsbedingungen von YouTube</a> und der
+            <a href="https://policies.google.com/privacy">Datenschutzerklärung von Google</a>.
+          </p>
+          <p>
+            Mit dem Werkzeug hochgeladene Inhalte erscheinen auf dem eigenen Kanal des Inhabers, und der Inhaber ist für sie
+            verantwortlich. Jedes Video wird von einem Menschen geprüft, bevor es hochgeladen wird.
+          </p>
+          <p>Das Werkzeug wird so bereitgestellt, wie es ist, für die Nutzung durch seinen Inhaber, ohne Gewährleistung.</p>
+          <p>
+            Kontakt: Alexander Wirths, <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a>.
+            Stand: 27. September 2026.
+          </p>
+
+          <section class="legal-lang" lang="en">
+            <h3>Terms of service, English</h3>
+            <p>
+              <strong>Norn Shorts</strong> is a private production tool used only by
+              Alexander Wirths for their own YouTube channels. It is not a service offered to the
+              public, and no one else can sign up.
+            </p>
+            <p>
+              The tool uses YouTube API Services. Its use is subject to the
+              <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>, and to the
+              <a href="https://policies.google.com/privacy">Google privacy policy</a>.
+            </p>
+            <p>
+              Content uploaded with the tool is published under the owner's own channel and the owner is responsible for it. Every
+              video is reviewed by a person before it is uploaded.
+            </p>
+            <p>The tool is provided as it is, for its owner's use, without warranty.</p>
+            <p>
+              Contact, Alexander Wirths, <a href="mailto:norn.optimization@gmail.com">norn.optimization@gmail.com</a>. Last
+              updated 27 September 2026.
+            </p>
+          </section>
+      </section>
     </main>
+
+    <footer class="footer">
+      <div class="wrap footer-row">
+        <span class="footer-copy">© 2026 Norn</span>
+        <a class="footer-top" href="#hero">Nach oben</a>
+      </div>
+    </footer>
 
     <script type="module" src="/src/home.ts"></script>
   </body>

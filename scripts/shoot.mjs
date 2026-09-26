@@ -63,11 +63,24 @@ for (const [name, viewport] of Object.entries(viewports)) {
   await page.waitForTimeout(900);
   await page.screenshot({ path: `${out}/${name}-home-full.png`, fullPage: true });
 
-  for (const slug of ["impressum", "datenschutz", "agb"]) {
-    await page.goto(`${base}${slug}/`);
-    await page.waitForTimeout(300);
-    await page.screenshot({ path: `${out}/${name}-${slug}.png`, fullPage: true });
+  // the legal links scroll down the same page
+  for (const name of ["Impressum", "Datenschutz", "AGB"]) {
+    await page.goto(base, { referer: base });
+    await page.waitForTimeout(600);
+    await page.click(`.hero-footer >> text=${name}`);
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: `${out}/${viewportName(name)}` });
   }
+  function viewportName(section) {
+    return `${name}-${section.toLowerCase()}.png`;
+  }
+
+  // a deep link to the privacy policy opens on it, without the intro
+  await page.goto(`${base}#datenschutz`);
+  await page.waitForTimeout(400);
+  const deep = await page.evaluate(() => [document.documentElement.dataset.intro, Math.round(window.scrollY)]);
+  if (deep[0] !== "done" || deep[1] < 200) failures.push(`${name} deep link opened as ${deep}`);
+
 
   // the intro in real time, skipped by a key press halfway
   await page.goto(base);
