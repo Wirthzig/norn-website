@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#ffffff" />
     <title>Norn</title>
     <meta name="description" content="Norn. Optimize everything. Automate the rest." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -20,6 +20,8 @@
         var internal = false;
         try { internal = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (error) {}
         root.dataset.intro = reduce ? "calm" : returning || internal ? "done" : "play";
+        // the intro starts in the night, the phone's bar should too
+        if (root.dataset.intro === "play") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#000000");
       })();
     </script>
   </head>

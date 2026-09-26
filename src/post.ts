@@ -14,6 +14,7 @@ export type Lens = {
   zoomBlur: number;
   exposure: number;
   bloom: number;
+  vignette: number;
   defocus: number;
   zoom: number;
   shakeX: number;
@@ -57,6 +58,7 @@ uniform float aberration;
 uniform float zoomBlur;
 uniform float exposure;
 uniform float bloom;
+uniform float vignette;
 uniform float defocus;
 uniform float zoom;
 uniform vec2 shake;
@@ -98,7 +100,7 @@ void main() {
   colour = colour * (1.0 + exposure * 3.0) + exposure * 0.4 * vec3(0.95, 0.97, 1.0);
 
   float edge = length(vUv - 0.5);
-  colour *= 1.0 - smoothstep(0.45, 0.95, edge) * 0.55;
+  colour *= 1.0 - smoothstep(0.45, 0.95, edge) * vignette;
   colour += (hash(vUv * 1000.0 + time) - 0.5) * 0.025;
   gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
 }`;
@@ -250,6 +252,7 @@ export class LensPass {
     gl.uniform1f(this.uniform(program, "zoomBlur"), lens.zoomBlur);
     gl.uniform1f(this.uniform(program, "exposure"), lens.exposure);
     gl.uniform1f(this.uniform(program, "bloom"), lens.bloom);
+    gl.uniform1f(this.uniform(program, "vignette"), lens.vignette);
     gl.uniform1f(this.uniform(program, "defocus"), lens.defocus);
     gl.uniform1f(this.uniform(program, "zoom"), lens.zoom);
     gl.uniform2f(this.uniform(program, "shake"), lens.shakeX, -lens.shakeY);

@@ -57,6 +57,8 @@ export class ParticleField {
   time = 0;
   beam: Beam | null = null;
   charge: Charge | null = null;
+  // light glows on the night, dark is ink on white paper once the page has flipped
+  ink: "light" | "dark" = "light";
   private pointerTargetX = 0;
   private pointerTargetY = 0;
   private pointerX = 0;
@@ -258,7 +260,8 @@ export class ParticleField {
     } else {
       context.clearRect(0, 0, this.width, this.height);
     }
-    context.globalCompositeOperation = "lighter";
+    const dark = this.ink === "dark";
+    context.globalCompositeOperation = dark ? "source-over" : "lighter";
 
     for (const particle of this.particles) {
       const shine = 0.72 + 0.28 * Math.sin(this.time * particle.twinkle + particle.phase);
@@ -268,12 +271,19 @@ export class ParticleField {
       const x = particle.x + this.pointerX * 14 * particle.depth;
       const y = particle.y + this.pointerY * 10 * particle.depth;
       const size = particle.size * (1 + particle.heat * 0.7);
-      const colour = particle.cool ? `rgba(196, 210, 255, ${alpha})` : `rgba(245, 245, 245, ${alpha})`;
+      const colour = dark
+        ? particle.cool
+          ? `rgba(95, 100, 110, ${alpha * 0.6})`
+          : `rgba(10, 10, 11, ${alpha * 0.6})`
+        : particle.cool
+          ? `rgba(196, 210, 255, ${alpha})`
+          : `rgba(245, 245, 245, ${alpha})`;
       const speed = Math.hypot(particle.velocityX, particle.velocityY);
       if (speed > 140) {
         // fast dust is drawn as a spark, a short streak along its path
         context.strokeStyle = colour;
-        context.lineWidth = size * 0.9;
+        // ink reads heavier on paper than light on the night, so it is drawn thinner
+        context.lineWidth = size * (dark ? 0.55 : 0.9);
         context.lineCap = "round";
         context.beginPath();
         context.moveTo(x - particle.velocityX * 0.028, y - particle.velocityY * 0.028);
@@ -321,18 +331,18 @@ export class ParticleField {
     const toX = beam.startX + beam.directionX * to;
     const toY = beam.startY + beam.directionY * to;
     const strength = 1 - easeOut(beam.fade);
+    const dark = this.ink === "dark";
+    const core = dark ? "10, 10, 11" : "255, 255, 255";
 
     const gradient = context.createLinearGradient(fromX, fromY, toX, toY);
     const headInside = beam.head <= beam.length;
-    gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
-    gradient.addColorStop(headInside ? 0.85 : 0.5, `rgba(255, 255, 255, ${strength})`);
-    gradient.addColorStop(1, headInside ? `rgba(255, 255, 255, ${strength})` : `rgba(255, 255, 255, ${strength * 0.6})`);
+    gradient.addColorStop(0, `rgba(${core}, 0)`);
+    gradient.addColorStop(headInside ? 0.85 : 0.5, `rgba(${core}, ${strength})`);
+    gradient.addColorStop(1, headInside ? `rgba(${core}, ${strength})` : `rgba(${core}, ${strength * 0.6})`);
 
     context.lineCap = "round";
     // three passes read as a glowing core without a blur filter
-    const passes: Array<[number, string]> = [
-      [5 * strength + 1, `rgba(200, 215, 255, ${0.12 * strength})`],
-    ];
+    const passes: Array<[number, string]> = dark ? [] : [[5 * strength + 1, `rgba(200, 215, 255, ${0.12 * strength})`]];
     for (const [lineWidth, colour] of passes) {
       context.strokeStyle = colour;
       context.lineWidth = lineWidth;
@@ -348,7 +358,7 @@ export class ParticleField {
     context.lineTo(toX, toY);
     context.stroke();
 
-    if (headInside) {
+    if (headInside && !dark) {
       // the head flares while it grinds through the disc
       const radius = 20 * (1 + beam.friction * 1.2);
       const glow = context.createRadialGradient(toX, toY, 0, toX, toY, radius);
@@ -364,7 +374,7 @@ export class ParticleField {
 
   private drawShock() {
     const context = this.context;
-    if (this.flareAt >= 0) {
+    if (this.flareAt >= 0 && this.ink === "light") {
       const progress = clamp01((this.time - this.flareAt) / FLARE_DURATION);
       if (progress < 1) {
         const alpha = 0.5 * (1 - easeOut(progress));

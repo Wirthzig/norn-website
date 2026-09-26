@@ -157,7 +157,7 @@ export function startIntro() {
   // painted opaque on its own layer and faded as one, overlapping shapes at half
   // opacity would show their seams
   const wordmarkLayer = document.createElement("canvas");
-  const paintWordmark = (target: CanvasRenderingContext2D, alpha: number) => {
+  const paintWordmark = (target: CanvasRenderingContext2D, alpha: number, shade: number) => {
     if (alpha <= 0) return;
     if (wordmarkLayer.width !== field.canvas.width || wordmarkLayer.height !== field.canvas.height) {
       wordmarkLayer.width = field.canvas.width;
@@ -171,7 +171,7 @@ export function startIntro() {
     const normalX = -Math.sin(CUT_ANGLE);
     const normalY = Math.cos(CUT_ANGLE);
     context.save();
-    context.fillStyle = "#f5f5f5";
+    context.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
     context.translate(line.originX, line.originY);
     context.scale(line.scale, line.scale);
     context.fill(lettersPath, "evenodd");
@@ -211,10 +211,22 @@ export function startIntro() {
     target.restore();
   };
 
+  // how far the page has turned from night to paper, it happens inside the whiteout
+  const flipAt = (now: number) => clamp01((now - IMPACT - 20) / 140);
+  let flipped = mode !== "play";
+  if (flipped) field.ink = "dark";
+  const markFlipped = () => {
+    if (flipped) return;
+    flipped = true;
+    field.ink = "dark";
+    root.dataset.flipped = "";
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#ffffff");
+  };
+
   // the cut stays hot for a moment after the ram, white cooling to blue
   const paintWound = (context: CanvasRenderingContext2D, now: number) => {
     if (centerAt < 0) return;
-    const heat = Math.exp(-(now - centerAt) / 450);
+    const heat = Math.exp(-(now - centerAt) / 450) * (1 - flipAt(now));
     if (heat < 0.02) return;
     const entry = line.impactDistance - DISC_HALF_CHORD * line.scale;
     const exit = Math.min(head, line.impactDistance + DISC_HALF_CHORD * line.scale);
@@ -240,17 +252,24 @@ export function startIntro() {
     context.restore();
   };
 
-  // the ground, the night lifting to near black with a faint light behind the name
+  // the ground, the night lifting to near black with a faint light behind the name,
+  // then flipped to white paper under the whiteout of the hit
   const paintBehind = (context: CanvasRenderingContext2D) => {
     const now = clock;
     const lift = now === null ? 1 : easeOut(clamp01((now - LIFT_START) / LIFT_DURATION));
-    context.fillStyle = `rgb(${10 * lift}, ${10 * lift}, ${11 * lift})`;
+    const flip = now === null ? 1 : flipAt(now);
+    const ground = (value: number) => Math.round(value + (255 - value) * flip);
+    context.fillStyle = `rgb(${ground(10 * lift)}, ${ground(10 * lift)}, ${ground(11 * lift)})`;
     context.fillRect(0, 0, field.width, field.height);
+    if (flip >= 1) {
+      if (canvasWordmark && now !== null) paintWordmark(context, 1 - clamp01((now - (END - 400)) / 400), 10);
+      return;
+    }
     context.save();
     context.translate(field.width / 2, field.height / 2);
     context.scale(field.width * 0.6, field.height * 0.45);
     const glow = context.createRadialGradient(0, 0, 0, 0, 0, 1);
-    glow.addColorStop(0, `rgba(255, 255, 255, ${0.045 * lift})`);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${0.045 * lift * (1 - flip)})`);
     glow.addColorStop(0.7, "rgba(255, 255, 255, 0)");
     context.fillStyle = glow;
     context.fillRect(-2, -2, 4, 4);
@@ -258,7 +277,9 @@ export function startIntro() {
     if (canvasWordmark && now !== null) {
       const rise = easeOut(clamp01((now - LIFT_START - 100) / LIFT_DURATION));
       const handover = 1 - clamp01((now - (END - 400)) / 400);
-      paintWordmark(context, rise * handover);
+      // the letters turn first, a dark silhouette inside the flash
+      const letters = clamp01((now - IMPACT) / 50);
+      paintWordmark(context, rise * handover, Math.round(245 - 235 * letters));
       paintWound(context, now);
     }
   };
@@ -276,6 +297,7 @@ export function startIntro() {
       zoomBlur: 0,
       exposure: 0,
       bloom: 0.04,
+      vignette: 0.1,
       defocus: 0,
       zoom: 1,
       shakeX: 0,
@@ -302,6 +324,7 @@ export function startIntro() {
       exposure: 0.6 * attack * decay(80),
       bloom: 0.04 + 0.35 * attack * decay(160) + (field.beam && !hit ? 0.05 : 0),
       defocus: 1 - easeOut(clamp01((now - LIFT_START - 100) / LIFT_DURATION)),
+      vignette: 0.55 - 0.45 * flipAt(now),
       zoom: 1.06 - 0.06 * easeOut(clamp01(now / STREAK_START)) + 0.045 * attack * decay(200),
       shakeX: (rumble * (Math.sin(now * 0.093) + 0.6 * Math.sin(now * 0.221 + 1.3))) / 1.6 / field.width,
       shakeY: (rumble * (Math.sin(now * 0.117 + 0.7) + 0.6 * Math.sin(now * 0.187 + 2.1))) / 1.6 / field.height,
@@ -321,6 +344,8 @@ export function startIntro() {
     if (!playing) return;
     playing = false;
     clock = null;
+    flipped = false;
+    markFlipped();
     for (const animation of animations) animation.finish();
     for (const animation of animations) animation.cancel();
     animations.length = 0;
@@ -408,6 +433,7 @@ export function startIntro() {
   // everything the canvas, the cut and the halves show at a moment of the intro
   const advance = (elapsed: number) => {
     clock = elapsed;
+    if (elapsed >= IMPACT + 90) markFlipped();
     const delta = Math.max(0, elapsed - lastElapsed);
     lastElapsed = elapsed;
     const discEntry = line.impactDistance - DISC_HALF_CHORD * line.scale;
