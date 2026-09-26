@@ -1,7 +1,7 @@
 // the word in the pill deletes itself and types the next one. rare and decorative, so
 // it waits for the intro and under reduced motion the first word simply stays
 
-const WORDS = ["optimizing", "automating", "innovating", "building"];
+const WORDS = ["automating", "optimizing", "building"];
 const TYPE_DELAY = 75;
 const DELETE_DELAY = 40;
 const HOLD = 2200;
