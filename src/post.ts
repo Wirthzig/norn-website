@@ -99,7 +99,7 @@ void main() {
 
   float edge = length(vUv - 0.5);
   colour *= 1.0 - smoothstep(0.45, 0.95, edge) * 0.55;
-  colour += (hash(vUv * 1000.0 + time) - 0.5) * 0.035;
+  colour += (hash(vUv * 1000.0 + time) - 0.5) * 0.025;
   gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
 }`;
 

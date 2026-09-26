@@ -214,7 +214,7 @@ export function startIntro() {
   // the cut stays hot for a moment after the ram, white cooling to blue
   const paintWound = (context: CanvasRenderingContext2D, now: number) => {
     if (centerAt < 0) return;
-    const heat = Math.exp(-(now - centerAt) / 900);
+    const heat = Math.exp(-(now - centerAt) / 450);
     if (heat < 0.02) return;
     const entry = line.impactDistance - DISC_HALF_CHORD * line.scale;
     const exit = Math.min(head, line.impactDistance + DISC_HALF_CHORD * line.scale);
@@ -226,9 +226,8 @@ export function startIntro() {
     context.globalCompositeOperation = "lighter";
     context.lineCap = "round";
     const strokes: Array<[number, string]> = [
-      [16 * line.scale, `rgba(120, 150, 255, ${0.18 * heat})`],
-      [7 * line.scale, `rgba(190, 210, 255, ${0.4 * heat})`],
-      [2.2 * line.scale, `rgba(255, 255, 255, ${0.95 * heat})`],
+      [5 * line.scale, `rgba(190, 210, 255, ${0.25 * heat})`],
+      [1.8 * line.scale, `rgba(255, 255, 255, ${0.9 * heat})`],
     ];
     for (const [width, colour] of strokes) {
       context.strokeStyle = colour;
@@ -251,7 +250,7 @@ export function startIntro() {
     context.translate(field.width / 2, field.height / 2);
     context.scale(field.width * 0.6, field.height * 0.45);
     const glow = context.createRadialGradient(0, 0, 0, 0, 0, 1);
-    glow.addColorStop(0, `rgba(255, 255, 255, ${0.07 * lift})`);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${0.045 * lift})`);
     glow.addColorStop(0.7, "rgba(255, 255, 255, 0)");
     context.fillStyle = glow;
     context.fillRect(-2, -2, 4, 4);
@@ -273,10 +272,10 @@ export function startIntro() {
       shockRadius: 0,
       shockWidth: 0.05,
       shockStrength: 0,
-      aberration: 0.0012,
+      aberration: 0.0006,
       zoomBlur: 0,
       exposure: 0,
-      bloom: 0.2,
+      bloom: 0.04,
       defocus: 0,
       zoom: 1,
       shakeX: 0,
@@ -298,10 +297,10 @@ export function startIntro() {
       shockRadius: hit ? 1.4 * easeOut(wave) : 0,
       shockWidth: 0.04 + 0.06 * wave,
       shockStrength: hit ? 0.035 * (1 - wave) ** 2 : 0,
-      aberration: 0.0012 + 0.016 * attack * decay(320),
-      zoomBlur: 0.14 * attack * decay(180),
-      exposure: 0.75 * attack * decay(120),
-      bloom: 0.2 + 0.8 * attack * decay(320) + (field.beam && !hit ? 0.25 : 0),
+      aberration: 0.0006 + 0.008 * attack * decay(200),
+      zoomBlur: 0.1 * attack * decay(120),
+      exposure: 0.6 * attack * decay(80),
+      bloom: 0.04 + 0.35 * attack * decay(160) + (field.beam && !hit ? 0.05 : 0),
       defocus: 1 - easeOut(clamp01((now - LIFT_START - 100) / LIFT_DURATION)),
       zoom: 1.06 - 0.06 * easeOut(clamp01(now / STREAK_START)) + 0.045 * attack * decay(200),
       shakeX: (rumble * (Math.sin(now * 0.093) + 0.6 * Math.sin(now * 0.221 + 1.3))) / 1.6 / field.width,

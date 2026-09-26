@@ -43,7 +43,7 @@ const MAX_PIXEL_RATIO = 2;
 // how fast burst speed decays toward the drift, per second
 const DRAG = 2.4;
 const SHOCK_DURATION = 1.1;
-const FLARE_DURATION = 0.6;
+const FLARE_DURATION = 0.35;
 
 export class ParticleField {
   private context: CanvasRenderingContext2D;
@@ -267,16 +267,16 @@ export class ParticleField {
       if (alpha < 0.01) continue;
       const x = particle.x + this.pointerX * 14 * particle.depth;
       const y = particle.y + this.pointerY * 10 * particle.depth;
-      const size = particle.size * (1 + particle.heat * 1.4);
+      const size = particle.size * (1 + particle.heat * 0.7);
       const colour = particle.cool ? `rgba(196, 210, 255, ${alpha})` : `rgba(245, 245, 245, ${alpha})`;
       const speed = Math.hypot(particle.velocityX, particle.velocityY);
       if (speed > 140) {
         // fast dust is drawn as a spark, a short streak along its path
         context.strokeStyle = colour;
-        context.lineWidth = size * 1.4;
+        context.lineWidth = size * 0.9;
         context.lineCap = "round";
         context.beginPath();
-        context.moveTo(x - particle.velocityX * 0.035, y - particle.velocityY * 0.035);
+        context.moveTo(x - particle.velocityX * 0.028, y - particle.velocityY * 0.028);
         context.lineTo(x, y);
         context.stroke();
       } else {
@@ -298,7 +298,7 @@ export class ParticleField {
     const charge = this.charge;
     if (!charge || charge.amount <= 0) return;
     const context = this.context;
-    const radius = 10 + 50 * charge.amount;
+    const radius = 6 + 24 * charge.amount;
     const glow = context.createRadialGradient(charge.x, charge.y, 0, charge.x, charge.y, radius);
     glow.addColorStop(0, `rgba(255, 255, 255, ${0.9 * charge.amount})`);
     glow.addColorStop(0.2, `rgba(210, 222, 255, ${0.4 * charge.amount})`);
@@ -331,8 +331,7 @@ export class ParticleField {
     context.lineCap = "round";
     // three passes read as a glowing core without a blur filter
     const passes: Array<[number, string]> = [
-      [18 * strength + 2, `rgba(150, 175, 255, ${0.07 * strength})`],
-      [6 * strength + 1, `rgba(200, 215, 255, ${0.22 * strength})`],
+      [5 * strength + 1, `rgba(200, 215, 255, ${0.12 * strength})`],
     ];
     for (const [lineWidth, colour] of passes) {
       context.strokeStyle = colour;
@@ -351,7 +350,7 @@ export class ParticleField {
 
     if (headInside) {
       // the head flares while it grinds through the disc
-      const radius = 36 * (1 + beam.friction * 2.2);
+      const radius = 20 * (1 + beam.friction * 1.2);
       const glow = context.createRadialGradient(toX, toY, 0, toX, toY, radius);
       glow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
       glow.addColorStop(0.25, "rgba(210, 222, 255, 0.35)");
@@ -368,14 +367,14 @@ export class ParticleField {
     if (this.flareAt >= 0) {
       const progress = clamp01((this.time - this.flareAt) / FLARE_DURATION);
       if (progress < 1) {
-        const alpha = 0.9 * (1 - easeOut(progress));
+        const alpha = 0.5 * (1 - easeOut(progress));
         const halfWidth = this.width * (0.35 + 0.6 * easeOut(progress));
         const gradient = context.createLinearGradient(this.flareX - halfWidth, 0, this.flareX + halfWidth, 0);
         gradient.addColorStop(0, "rgba(170, 195, 255, 0)");
         gradient.addColorStop(0.5, `rgba(235, 240, 255, ${alpha})`);
         gradient.addColorStop(1, "rgba(170, 195, 255, 0)");
         context.fillStyle = gradient;
-        context.fillRect(this.flareX - halfWidth, this.flareY - 1.5, halfWidth * 2, 3);
+        context.fillRect(this.flareX - halfWidth, this.flareY - 0.75, halfWidth * 2, 1.5);
       }
     }
   }
