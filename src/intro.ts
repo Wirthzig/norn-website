@@ -4,8 +4,9 @@
 // right. it plays once per arrival, skips on any input and stays calm under
 // reduced motion.
 
-import { EASE_OUT_CSS, clamp01 } from "./easing";
+import { EASE_OUT_CSS, clamp01, easeOut } from "./easing";
 import { ParticleField } from "./particles";
+import { LensPass, type Lens } from "./post";
 
 // milliseconds from the start
 const LIFT_START = 150;
@@ -55,7 +56,20 @@ export function startIntro() {
   if (!hero || !canvas || !wordmark || !cover || !tips || !upperHalf || !lowerHalf || !glow || !flash || !skip) return;
 
   const mode = (root.dataset.intro as Mode) || "done";
-  const field = new ParticleField(canvas);
+  // with webgl the scene is painted offscreen, wordmark included, and filmed through
+  // the lens. without it the canvas holds only the light and the svg stays on top
+  const lens = mode === "calm" ? null : LensPass.create(canvas);
+  const field = new ParticleField(lens ? document.createElement("canvas") : canvas, lens ? 1.5 : 2);
+  const canvasWordmark = !!lens && mode === "play";
+  // milliseconds into the intro, or null once the page is at rest
+  let clock: number | null = mode === "play" ? 0 : null;
+  let cutPosition = CUT_REACH;
+  let recoilOffset = 0;
+  const pathOf = (element: Element | null) => new Path2D(element?.getAttribute("d") ?? "");
+  const lettersPath = pathOf(wordmark.querySelector("path:not([id])"));
+  const upperPath = pathOf(upperHalf);
+  const lowerPath = pathOf(lowerHalf);
+  const tipsPath = pathOf(wordmark.querySelector("g[clip-path] path"));
   const animations: Animation[] = [];
   let playing = mode === "play";
   let burstDone = false;
@@ -73,6 +87,7 @@ export function startIntro() {
 
   // the halves spring apart along the cut's normal and settle back
   const setRecoil = (offset: number) => {
+    recoilOffset = offset;
     const normalX = -Math.sin(CUT_ANGLE);
     const normalY = Math.cos(CUT_ANGLE);
     upperHalf.setAttribute("transform", `translate(${-normalX * offset} ${-normalY * offset})`);
@@ -82,6 +97,7 @@ export function startIntro() {
   // position of the cut, -reach is an uncut disc, +reach the finished mark
   const setCut = (position: number) => {
     const cut = Math.max(-CUT_REACH, Math.min(CUT_REACH, position));
+    cutPosition = cut;
     cover.setAttribute("x", String(cut));
     cover.setAttribute("width", String(Math.max(0, CUT_REACH - cut)));
     tips.setAttribute("width", String(Math.max(0, cut + 400)));
@@ -111,6 +127,8 @@ export function startIntro() {
     const forward = toEdge(1);
     const visibleBack = toEdge(-1, -14);
     return {
+      originX: (matrix ? matrix.e : 0) - heroRect.left,
+      originY: (matrix ? matrix.f : 0) - heroRect.top,
       chargeX: centerX - directionX * visibleBack,
       chargeY: centerY - directionY * visibleBack,
       scale,
@@ -124,11 +142,186 @@ export function startIntro() {
       length: back + forward,
     };
   };
+  const resizeAll = () => {
+    const rect = hero.getBoundingClientRect();
+    field.resize(rect.width, rect.height);
+    if (lens) {
+      canvas.width = field.canvas.width;
+      canvas.height = field.canvas.height;
+    }
+  };
+  resizeAll();
   let line = geometry();
+
+  // the wordmark painted into the scene, the same paths and the same cut as the svg
+  // painted opaque on its own layer and faded as one, overlapping shapes at half
+  // opacity would show their seams
+  const wordmarkLayer = document.createElement("canvas");
+  const paintWordmark = (target: CanvasRenderingContext2D, alpha: number) => {
+    if (alpha <= 0) return;
+    if (wordmarkLayer.width !== field.canvas.width || wordmarkLayer.height !== field.canvas.height) {
+      wordmarkLayer.width = field.canvas.width;
+      wordmarkLayer.height = field.canvas.height;
+    }
+    const context = wordmarkLayer.getContext("2d");
+    if (!context) return;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, wordmarkLayer.width, wordmarkLayer.height);
+    context.setTransform(field.ratio, 0, 0, field.ratio, 0, 0);
+    const normalX = -Math.sin(CUT_ANGLE);
+    const normalY = Math.cos(CUT_ANGLE);
+    context.save();
+    context.fillStyle = "#f5f5f5";
+    context.translate(line.originX, line.originY);
+    context.scale(line.scale, line.scale);
+    context.fill(lettersPath, "evenodd");
+    context.save();
+    context.translate(-normalX * recoilOffset, -normalY * recoilOffset);
+    context.fill(upperPath, "evenodd");
+    context.restore();
+    context.save();
+    context.translate(normalX * recoilOffset, normalY * recoilOffset);
+    context.fill(lowerPath, "evenodd");
+    context.restore();
+    // the spindle tips show behind the cut, the cover hides the gap ahead of it
+    context.save();
+    context.translate(CUT_CENTER_X, CUT_CENTER_Y);
+    context.rotate(CUT_ANGLE);
+    context.beginPath();
+    context.rect(-400, -60, cutPosition + 400, 120);
+    context.rotate(-CUT_ANGLE);
+    context.translate(-CUT_CENTER_X, -CUT_CENTER_Y);
+    context.clip();
+    context.fill(tipsPath, "evenodd");
+    context.restore();
+    if (cutPosition < CUT_REACH) {
+      context.save();
+      context.beginPath();
+      context.arc(408, 135.5, 134, 0, Math.PI * 2);
+      context.clip();
+      context.translate(CUT_CENTER_X, CUT_CENTER_Y);
+      context.rotate(CUT_ANGLE);
+      context.fillRect(cutPosition, -13, CUT_REACH - cutPosition, 26);
+      context.restore();
+    }
+    context.restore();
+    target.save();
+    target.globalAlpha = alpha;
+    target.drawImage(wordmarkLayer, 0, 0, field.width, field.height);
+    target.restore();
+  };
+
+  // the cut stays hot for a moment after the ram, white cooling to blue
+  const paintWound = (context: CanvasRenderingContext2D, now: number) => {
+    if (centerAt < 0) return;
+    const heat = Math.exp(-(now - centerAt) / 900);
+    if (heat < 0.02) return;
+    const entry = line.impactDistance - DISC_HALF_CHORD * line.scale;
+    const exit = Math.min(head, line.impactDistance + DISC_HALF_CHORD * line.scale);
+    const fromX = line.startX + line.directionX * entry;
+    const fromY = line.startY + line.directionY * entry;
+    const toX = line.startX + line.directionX * exit;
+    const toY = line.startY + line.directionY * exit;
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    context.lineCap = "round";
+    const strokes: Array<[number, string]> = [
+      [16 * line.scale, `rgba(120, 150, 255, ${0.18 * heat})`],
+      [7 * line.scale, `rgba(190, 210, 255, ${0.4 * heat})`],
+      [2.2 * line.scale, `rgba(255, 255, 255, ${0.95 * heat})`],
+    ];
+    for (const [width, colour] of strokes) {
+      context.strokeStyle = colour;
+      context.lineWidth = width;
+      context.beginPath();
+      context.moveTo(fromX, fromY);
+      context.lineTo(toX, toY);
+      context.stroke();
+    }
+    context.restore();
+  };
+
+  // the ground, the night lifting to near black with a faint light behind the name
+  const paintBehind = (context: CanvasRenderingContext2D) => {
+    const now = clock;
+    const lift = now === null ? 1 : easeOut(clamp01((now - LIFT_START) / LIFT_DURATION));
+    context.fillStyle = `rgb(${10 * lift}, ${10 * lift}, ${11 * lift})`;
+    context.fillRect(0, 0, field.width, field.height);
+    context.save();
+    context.translate(field.width / 2, field.height / 2);
+    context.scale(field.width * 0.6, field.height * 0.45);
+    const glow = context.createRadialGradient(0, 0, 0, 0, 0, 1);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${0.07 * lift})`);
+    glow.addColorStop(0.7, "rgba(255, 255, 255, 0)");
+    context.fillStyle = glow;
+    context.fillRect(-2, -2, 4, 4);
+    context.restore();
+    if (canvasWordmark && now !== null) {
+      const rise = easeOut(clamp01((now - LIFT_START - 100) / LIFT_DURATION));
+      const handover = 1 - clamp01((now - (END - 400)) / 400);
+      paintWordmark(context, rise * handover);
+      paintWound(context, now);
+    }
+  };
+
+  // what the lens does at this moment. at rest it only adds grain, a vignette, a
+  // little bloom and a trace of colour fringing
+  const lensAt = (): Lens => {
+    const rest: Lens = {
+      centerX: line.centerX / field.width,
+      centerY: line.centerY / field.height,
+      shockRadius: 0,
+      shockWidth: 0.05,
+      shockStrength: 0,
+      aberration: 0.0012,
+      zoomBlur: 0,
+      exposure: 0,
+      bloom: 0.2,
+      defocus: 0,
+      zoom: 1,
+      shakeX: 0,
+      shakeY: 0,
+      time: field.time,
+    };
+    if (clock === null || !canvasWordmark) return rest;
+    const now = clock;
+    const since = now - IMPACT;
+    const hit = since >= 0;
+    const decay = (tau: number) => (hit ? Math.exp(-since / tau) : 0);
+    const attack = hit ? Math.min(1, since / 25) : 0;
+    const charge = hit ? 0 : clamp01((now - (STREAK_START - CHARGE_DURATION)) / CHARGE_DURATION);
+    // a rumble while the light gathers, then the hit
+    const rumble = (1.6 * charge * charge + 18 * attack * decay(170)) * (0.6 + 0.4 * field.motionScale);
+    const wave = clamp01(since / 1000);
+    return {
+      ...rest,
+      shockRadius: hit ? 1.4 * easeOut(wave) : 0,
+      shockWidth: 0.04 + 0.06 * wave,
+      shockStrength: hit ? 0.035 * (1 - wave) ** 2 : 0,
+      aberration: 0.0012 + 0.016 * attack * decay(320),
+      zoomBlur: 0.14 * attack * decay(180),
+      exposure: 0.75 * attack * decay(120),
+      bloom: 0.2 + 0.8 * attack * decay(320) + (field.beam && !hit ? 0.25 : 0),
+      defocus: 1 - easeOut(clamp01((now - LIFT_START - 100) / LIFT_DURATION)),
+      zoom: 1.06 - 0.06 * easeOut(clamp01(now / STREAK_START)) + 0.045 * attack * decay(200),
+      shakeX: (rumble * (Math.sin(now * 0.093) + 0.6 * Math.sin(now * 0.221 + 1.3))) / 1.6 / field.width,
+      shakeY: (rumble * (Math.sin(now * 0.117 + 0.7) + 0.6 * Math.sin(now * 0.187 + 2.1))) / 1.6 / field.height,
+    };
+  };
+
+  const render = () => {
+    if (!lens) {
+      field.draw();
+      return;
+    }
+    field.draw(paintBehind);
+    lens.render(field.canvas, lensAt());
+  };
 
   const finish = () => {
     if (!playing) return;
     playing = false;
+    clock = null;
     for (const animation of animations) animation.finish();
     for (const animation of animations) animation.cancel();
     animations.length = 0;
@@ -215,6 +408,7 @@ export function startIntro() {
 
   // everything the canvas, the cut and the halves show at a moment of the intro
   const advance = (elapsed: number) => {
+    clock = elapsed;
     const delta = Math.max(0, elapsed - lastElapsed);
     lastElapsed = elapsed;
     const discEntry = line.impactDistance - DISC_HALF_CHORD * line.scale;
@@ -241,6 +435,7 @@ export function startIntro() {
       head += speed * Math.min(1, flown - step);
     }
 
+    field.wake(line.startX, line.startY, line.directionX, line.directionY, previous - 40, head);
     const along = (head - line.impactDistance) / line.scale;
     if (!entered && along >= -DISC_HALF_CHORD) {
       entered = true;
@@ -302,7 +497,7 @@ export function startIntro() {
       if (elapsed >= END) finish();
     }
     field.step(deltaSeconds);
-    field.draw();
+    render();
     if (visible && !document.hidden) frame = requestAnimationFrame(tick);
   };
 
@@ -313,9 +508,9 @@ export function startIntro() {
   };
 
   new ResizeObserver(() => {
-    field.resize();
+    resizeAll();
     line = geometry();
-    if (mode === "calm" || frozen) field.draw();
+    if (mode === "calm" || frozen) render();
   }).observe(hero);
 
   // the drift only runs while someone can see it
@@ -359,53 +554,58 @@ export function startIntro() {
   start = document.timeline.currentTime as number;
   const at = (milliseconds: number) => ({ delay: milliseconds });
 
-  animate(hero, [{ backgroundColor: "#000000" }, { backgroundColor: "#0a0a0b" }], {
-    ...at(LIFT_START),
-    duration: LIFT_DURATION,
-    easing: "ease",
-  });
-  animate(glow, [{ opacity: 0 }, { opacity: 1 }], { ...at(LIFT_START), duration: LIFT_DURATION, easing: EASE_OUT_CSS });
-  animate(
-    wordmark,
-    [
-      { opacity: 0, filter: "blur(14px)", transform: "scale(0.97)" },
-      { opacity: 1, filter: "blur(0px)", transform: "scale(1)" },
-    ],
-    { ...at(LIFT_START + 100), duration: LIFT_DURATION, easing: EASE_OUT_CSS },
-  );
-  // the impact, a white out that falls away, a glow left on the letters
-  animate(
-    flash,
-    [
-      { opacity: 0, easing: "linear" },
-      { opacity: 0.7, offset: 0.06, easing: EASE_OUT_CSS },
-      { opacity: 0 },
-    ],
-    { ...at(IMPACT - 10), duration: 560 },
-  );
-  // the hit shakes the frame, hard at first and dying out. a fixed pattern, so every
-  // visit feels the same
-  const title = hero.querySelector(".hero-title");
-  const amplitude = Math.min(10, field.width / 110);
-  const pattern = [
-    [0.9, -0.5], [-0.8, 0.7], [0.6, 0.9], [-0.9, -0.3], [0.4, -0.8],
-    [-0.5, 0.5], [0.6, 0.2], [-0.3, -0.4], [0.2, 0.3], [0, 0],
-  ];
-  const shake = (scalePunch: boolean): Keyframe[] => [
-    { transform: "translate(0, 0) scale(1)" },
-    ...pattern.map(([x, y], index) => {
-      const decay = (1 - index / pattern.length) ** 2;
-      const punch = scalePunch ? 1 + 0.02 * decay : 1;
-      return { transform: `translate(${x * amplitude * decay}px, ${y * amplitude * decay}px) scale(${punch})` };
-    }),
-  ];
-  if (title) animate(title, shake(true), { ...at(IMPACT), duration: 520, easing: "linear", fill: "none" });
-  animate(canvas, shake(false), { ...at(IMPACT), duration: 520, easing: "linear", fill: "none" });
-  animate(
-    wordmark,
-    [{ filter: "drop-shadow(0 0 10px rgba(220, 230, 255, 0.8))" }, { filter: "drop-shadow(0 0 0 rgba(220, 230, 255, 0))" }],
-    { ...at(IMPACT), duration: 1200, easing: EASE_OUT_CSS, fill: "none" },
-  );
+  if (lens) {
+    // the canvas paints the wordmark through the intro, the svg takes over at the end
+    animate(wordmark, [{ opacity: 0 }, { opacity: 1 }], { ...at(END - 400), duration: 400, easing: "ease" });
+  } else {
+    animate(hero, [{ backgroundColor: "#000000" }, { backgroundColor: "#0a0a0b" }], {
+      ...at(LIFT_START),
+      duration: LIFT_DURATION,
+      easing: "ease",
+    });
+    animate(glow, [{ opacity: 0 }, { opacity: 1 }], { ...at(LIFT_START), duration: LIFT_DURATION, easing: EASE_OUT_CSS });
+    animate(
+      wordmark,
+      [
+        { opacity: 0, filter: "blur(14px)", transform: "scale(0.97)" },
+        { opacity: 1, filter: "blur(0px)", transform: "scale(1)" },
+      ],
+      { ...at(LIFT_START + 100), duration: LIFT_DURATION, easing: EASE_OUT_CSS },
+    );
+    // the impact, a white out that falls away, a glow left on the letters
+    animate(
+      flash,
+      [
+        { opacity: 0, easing: "linear" },
+        { opacity: 0.7, offset: 0.06, easing: EASE_OUT_CSS },
+        { opacity: 0 },
+      ],
+      { ...at(IMPACT - 10), duration: 560 },
+    );
+    // the hit shakes the frame, hard at first and dying out. a fixed pattern, so every
+    // visit feels the same
+    const title = hero.querySelector(".hero-title");
+    const amplitude = Math.min(10, field.width / 110);
+    const pattern = [
+      [0.9, -0.5], [-0.8, 0.7], [0.6, 0.9], [-0.9, -0.3], [0.4, -0.8],
+      [-0.5, 0.5], [0.6, 0.2], [-0.3, -0.4], [0.2, 0.3], [0, 0],
+    ];
+    const shake = (scalePunch: boolean): Keyframe[] => [
+      { transform: "translate(0, 0) scale(1)" },
+      ...pattern.map(([x, y], index) => {
+        const decay = (1 - index / pattern.length) ** 2;
+        const punch = scalePunch ? 1 + 0.02 * decay : 1;
+        return { transform: `translate(${x * amplitude * decay}px, ${y * amplitude * decay}px) scale(${punch})` };
+      }),
+    ];
+    if (title) animate(title, shake(true), { ...at(IMPACT), duration: 520, easing: "linear", fill: "none" });
+    animate(canvas, shake(false), { ...at(IMPACT), duration: 520, easing: "linear", fill: "none" });
+    animate(
+      wordmark,
+      [{ filter: "drop-shadow(0 0 10px rgba(220, 230, 255, 0.8))" }, { filter: "drop-shadow(0 0 0 rgba(220, 230, 255, 0))" }],
+      { ...at(IMPACT), duration: 1200, easing: EASE_OUT_CSS, fill: "none" },
+    );
+  }
   hero.querySelectorAll(".intro-after").forEach((element, index) => {
     animate(
       element,
@@ -431,7 +631,7 @@ export function startIntro() {
       advance(elapsed);
       field.step(1 / 60);
     }
-    field.draw();
+    render();
     return;
   }
 

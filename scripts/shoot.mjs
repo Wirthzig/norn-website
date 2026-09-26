@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { chromium } from "playwright-core";
 
 const base = process.argv[2] ?? "http://127.0.0.1:5610/norn-website/";
-const frames = [900, 1700, 1800, 1930, 2000, 2020, 2045, 2075, 2110, 2170, 2300, 2600, 3200, 3900];
+const frames = [400, 900, 1700, 1800, 1930, 2000, 2020, 2045, 2075, 2110, 2170, 2300, 2600, 3200, 3900];
 const out = "shots";
 mkdirSync(out, { recursive: true });
 

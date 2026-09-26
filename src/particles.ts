@@ -62,21 +62,24 @@ export class ParticleField {
   private pointerX = 0;
   private pointerY = 0;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  ratio = 1;
+
+  constructor(
+    readonly canvas: HTMLCanvasElement,
+    private maxRatio = MAX_PIXEL_RATIO,
+  ) {
     const context = canvas.getContext("2d");
     if (!context) throw new Error("no 2d canvas");
     this.context = context;
-    this.resize();
   }
 
-  resize() {
-    const rect = this.canvas.getBoundingClientRect();
-    const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
-    this.width = rect.width;
-    this.height = rect.height;
-    this.canvas.width = Math.round(rect.width * ratio);
-    this.canvas.height = Math.round(rect.height * ratio);
-    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  resize(width: number, height: number) {
+    this.ratio = Math.min(window.devicePixelRatio || 1, this.maxRatio);
+    this.width = width;
+    this.height = height;
+    this.canvas.width = Math.round(width * this.ratio);
+    this.canvas.height = Math.round(height * this.ratio);
+    this.context.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
   }
 
   // scales with the screen so a phone is not a snow globe and a monitor not empty
@@ -172,6 +175,25 @@ export class ParticleField {
     this.particles.push(particle);
   }
 
+  // the streak drags the dust near its path along in its wake
+  wake(startX: number, startY: number, directionX: number, directionY: number, from: number, to: number) {
+    const reach = 90;
+    for (const particle of this.particles) {
+      const relativeX = particle.x - startX;
+      const relativeY = particle.y - startY;
+      const along = relativeX * directionX + relativeY * directionY;
+      if (along < from || along > to) continue;
+      const across = relativeX * -directionY + relativeY * directionX;
+      if (Math.abs(across) > reach) continue;
+      const closeness = 1 - Math.abs(across) / reach;
+      const pull = (300 + 900 * closeness) * closeness * this.motionScale;
+      const side = Math.sign(across) || 1;
+      particle.velocityX += directionX * pull - directionY * side * pull * 0.15;
+      particle.velocityY += directionY * pull + directionX * side * pull * 0.15;
+      particle.heat = Math.max(particle.heat, 0.5 * closeness);
+    }
+  }
+
   shock(x: number, y: number) {
     const reach = Math.hypot(Math.max(x, this.width - x), Math.max(y, this.height - y));
     this.shockwaves.push({ x, y, born: this.time, reach });
@@ -226,9 +248,16 @@ export class ParticleField {
     this.shockwaves = this.shockwaves.filter((wave) => this.time - wave.born < SHOCK_DURATION);
   }
 
-  draw() {
+  // behind paints the ground and the wordmark under the dust, without it the canvas
+  // stays transparent over the page
+  draw(behind?: (context: CanvasRenderingContext2D) => void) {
     const context = this.context;
-    context.clearRect(0, 0, this.width, this.height);
+    if (behind) {
+      context.globalCompositeOperation = "source-over";
+      behind(context);
+    } else {
+      context.clearRect(0, 0, this.width, this.height);
+    }
     context.globalCompositeOperation = "lighter";
 
     for (const particle of this.particles) {
@@ -336,33 +365,17 @@ export class ParticleField {
 
   private drawShock() {
     const context = this.context;
-    for (const wave of this.shockwaves) {
-      const progress = clamp01((this.time - wave.born) / SHOCK_DURATION);
-      const radius = wave.reach * easeOut(progress);
-      const alpha = 0.55 * (1 - progress) * (1 - progress);
-      context.strokeStyle = `rgba(220, 230, 255, ${alpha})`;
-      context.lineWidth = 1 + 10 * (1 - progress);
-      context.beginPath();
-      context.arc(wave.x, wave.y, radius, 0, Math.PI * 2);
-      context.stroke();
-      context.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
-      context.lineWidth = 1;
-      context.beginPath();
-      context.arc(wave.x, wave.y, radius * 0.82, 0, Math.PI * 2);
-      context.stroke();
-    }
-
     if (this.flareAt >= 0) {
       const progress = clamp01((this.time - this.flareAt) / FLARE_DURATION);
       if (progress < 1) {
-        const alpha = 0.7 * (1 - easeOut(progress));
-        const halfWidth = this.width * (0.3 + 0.5 * easeOut(progress));
+        const alpha = 0.9 * (1 - easeOut(progress));
+        const halfWidth = this.width * (0.35 + 0.6 * easeOut(progress));
         const gradient = context.createLinearGradient(this.flareX - halfWidth, 0, this.flareX + halfWidth, 0);
         gradient.addColorStop(0, "rgba(170, 195, 255, 0)");
         gradient.addColorStop(0.5, `rgba(235, 240, 255, ${alpha})`);
         gradient.addColorStop(1, "rgba(170, 195, 255, 0)");
         context.fillStyle = gradient;
-        context.fillRect(this.flareX - halfWidth, this.flareY - 1, halfWidth * 2, 2);
+        context.fillRect(this.flareX - halfWidth, this.flareY - 1.5, halfWidth * 2, 3);
       }
     }
   }

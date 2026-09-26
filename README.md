@@ -12,9 +12,13 @@ npm run build     # static site in dist/
 
 ## The intro
 
-`src/intro.ts` runs the timeline, `src/particles.ts` draws the streak, the shockwave and
-the dust on one canvas. The wordmark stays an SVG. The O is the real mark, a cover rect
-hides the cut until the streak's head passes it, so logo and light cannot drift apart.
+`src/intro.ts` runs the timeline, `src/particles.ts` paints the streak, the sparks and the
+dust, `src/post.ts` films that scene through a WebGL lens (focus pull, overexposure,
+bloom, colour fringing, zoom blur, shake and a pressure wave that bends light). During
+the intro the wordmark is painted into the scene from the same paths as the SVG, which
+takes over at the end. A cover hides the cut until the streak's head passes it, so logo
+and light cannot drift apart. Without WebGL the SVG and a plain canvas do the same with
+less.
 
 - Plays when someone arrives from outside. Coming back from a page of the site, or with
   back and forward, it opens on the finished logo. Nothing is stored on the device, so

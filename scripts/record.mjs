@@ -26,7 +26,8 @@ function browserPath() {
   throw new Error("no chromium found, set CHROMIUM_PATH");
 }
 
-const browser = await chromium.launch({ executablePath: browserPath() });
+// the real gpu, the software renderer is too slow for the lens and the video stutters
+const browser = await chromium.launch({ executablePath: browserPath(), args: ["--use-angle=metal", "--enable-gpu"] });
 const runs = {
   desktop: { viewport: { width: 1440, height: 900 } },
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
