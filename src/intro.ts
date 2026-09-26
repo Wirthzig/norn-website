@@ -59,7 +59,7 @@ export function startIntro() {
   // with webgl the scene is painted offscreen, wordmark included, and filmed through
   // the lens. without it the canvas holds only the light and the svg stays on top
   const lens = mode === "calm" ? null : LensPass.create(canvas);
-  const field = new ParticleField(lens ? document.createElement("canvas") : canvas, lens ? 1.5 : 2);
+  const field = new ParticleField(lens ? document.createElement("canvas") : canvas, 2);
   const canvasWordmark = !!lens && mode === "play";
   // milliseconds into the intro, or null once the page is at rest
   let clock: number | null = mode === "play" ? 0 : null;
@@ -197,7 +197,7 @@ export function startIntro() {
     if (cutPosition < CUT_REACH) {
       context.save();
       context.beginPath();
-      context.arc(408, 135.5, 134, 0, Math.PI * 2);
+      context.arc(408.25, 135.84, 135.04, 0, Math.PI * 2);
       context.clip();
       context.translate(CUT_CENTER_X, CUT_CENTER_Y);
       context.rotate(CUT_ANGLE);
@@ -272,7 +272,7 @@ export function startIntro() {
       shockRadius: 0,
       shockWidth: 0.05,
       shockStrength: 0,
-      aberration: 0.0006,
+      aberration: 0,
       zoomBlur: 0,
       exposure: 0,
       bloom: 0.04,
@@ -297,7 +297,7 @@ export function startIntro() {
       shockRadius: hit ? 1.4 * easeOut(wave) : 0,
       shockWidth: 0.04 + 0.06 * wave,
       shockStrength: hit ? 0.035 * (1 - wave) ** 2 : 0,
-      aberration: 0.0006 + 0.008 * attack * decay(200),
+      aberration: 0.008 * attack * decay(200),
       zoomBlur: 0.1 * attack * decay(120),
       exposure: 0.6 * attack * decay(80),
       bloom: 0.04 + 0.35 * attack * decay(160) + (field.beam && !hit ? 0.05 : 0),
@@ -609,8 +609,8 @@ export function startIntro() {
     animate(
       element,
       [
-        { opacity: 0, transform: `${element.classList.contains("hero-cue") ? "translateX(-50%) " : ""}translateY(8px)` },
-        { opacity: 1, transform: `${element.classList.contains("hero-cue") ? "translateX(-50%) " : ""}translateY(0)` },
+        { opacity: 0, transform: "translateY(8px)" },
+        { opacity: 1, transform: "translateY(0)" },
       ],
       { ...at(UI_START + index * UI_STAGGER), duration: UI_DURATION, easing: EASE_OUT_CSS },
     );

@@ -1,12 +1,10 @@
 import { resolve } from "node:path";
-import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // github pages serves the project under /norn-website/. a custom domain later sets
 // SITE_BASE=/ in the workflow and nothing else changes
 export default defineConfig({
   base: process.env.SITE_BASE ?? "/norn-website/",
-  plugins: [react()],
   build: {
     rollupOptions: {
       input: {
