@@ -33,7 +33,11 @@ export type Beam = {
   head: number;
   tail: number;
   fade: number;
+  // 0 in free flight, 1 while the head grinds through the disc
+  friction: number;
 };
+
+export type Charge = { x: number; y: number; amount: number };
 
 const MAX_PIXEL_RATIO = 2;
 // how fast burst speed decays toward the drift, per second
@@ -52,6 +56,7 @@ export class ParticleField {
   height = 0;
   time = 0;
   beam: Beam | null = null;
+  charge: Charge | null = null;
   private pointerTargetX = 0;
   private pointerTargetY = 0;
   private pointerX = 0;
@@ -139,14 +144,32 @@ export class ParticleField {
         angle = Math.random() * Math.PI * 2;
         speed = 120 + Math.random() * 640;
       }
-      particle.velocityX = Math.cos(angle) * speed;
-      particle.velocityY = Math.sin(angle) * speed;
+      particle.velocityX = Math.cos(angle) * speed * this.motionScale;
+      particle.velocityY = Math.sin(angle) * speed * this.motionScale;
       particle.heat = 0.6 + Math.random() * 0.4;
       particle.size *= 1.15;
       particle.alpha = Math.min(1, particle.alpha * 1.3);
       particle.shocked = true;
       this.particles.push(particle);
     }
+  }
+
+  // burst speeds are tuned on a desktop. a phone gets slower sparks, the same
+  // spray at a smaller scale instead of streaks across the whole screen
+  get motionScale() {
+    return Math.min(1, Math.max(0.45, this.width / 1200));
+  }
+
+  // one hot spark, for the spray out of the cut
+  emit(x: number, y: number, velocityX: number, velocityY: number) {
+    const particle = this.make(x, y);
+    particle.velocityX = velocityX * this.motionScale;
+    particle.velocityY = velocityY * this.motionScale;
+    particle.heat = 0.7 + Math.random() * 0.3;
+    particle.size *= 0.9 + Math.random() * 0.6;
+    particle.alpha = Math.min(1, particle.alpha * 1.4);
+    particle.shocked = true;
+    this.particles.push(particle);
   }
 
   shock(x: number, y: number) {
@@ -235,9 +258,26 @@ export class ParticleField {
       }
     }
 
+    this.drawCharge();
     this.drawBeam();
     this.drawShock();
     context.globalCompositeOperation = "source-over";
+  }
+
+  // the light gathering at the screen edge before the streak launches
+  private drawCharge() {
+    const charge = this.charge;
+    if (!charge || charge.amount <= 0) return;
+    const context = this.context;
+    const radius = 10 + 50 * charge.amount;
+    const glow = context.createRadialGradient(charge.x, charge.y, 0, charge.x, charge.y, radius);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${0.9 * charge.amount})`);
+    glow.addColorStop(0.2, `rgba(210, 222, 255, ${0.4 * charge.amount})`);
+    glow.addColorStop(1, "rgba(160, 185, 255, 0)");
+    context.fillStyle = glow;
+    context.beginPath();
+    context.arc(charge.x, charge.y, radius, 0, Math.PI * 2);
+    context.fill();
   }
 
   private drawBeam() {
@@ -281,13 +321,15 @@ export class ParticleField {
     context.stroke();
 
     if (headInside) {
-      const glow = context.createRadialGradient(toX, toY, 0, toX, toY, 36);
+      // the head flares while it grinds through the disc
+      const radius = 36 * (1 + beam.friction * 2.2);
+      const glow = context.createRadialGradient(toX, toY, 0, toX, toY, radius);
       glow.addColorStop(0, "rgba(255, 255, 255, 0.9)");
       glow.addColorStop(0.25, "rgba(210, 222, 255, 0.35)");
       glow.addColorStop(1, "rgba(160, 185, 255, 0)");
       context.fillStyle = glow;
       context.beginPath();
-      context.arc(toX, toY, 36, 0, Math.PI * 2);
+      context.arc(toX, toY, radius, 0, Math.PI * 2);
       context.fill();
     }
   }
