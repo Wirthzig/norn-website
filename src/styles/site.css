@@ -346,10 +346,19 @@ html[data-intro="calm"] .wordmark {
   overflow-wrap: anywhere;
 }
 
-.legal-lang {
-  margin-top: 56px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+.legal-kicker {
+  color: var(--text-muted);
+}
+
+/* the right to object has to stand apart from the rest, art. 21 gdpr */
+.legal-callout {
+  margin-top: 40px;
+  padding: 4px 20px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+.legal-callout h3 {
+  margin-top: 20px;
 }
 
 /* ---------- footer ---------- */
@@ -398,4 +407,9 @@ html[data-intro="calm"] .wordmark {
   html {
     scroll-behavior: auto;
   }
+}
+
+.legal strong {
+  font-weight: 500;
+  color: var(--text-strong);
 }
